@@ -25,8 +25,7 @@ O **Problema do Caixeiro Viajante** é um desafio clássico na ciência da compu
 
 Este trabalho avaliativo visa explorar:  
 - A aplicação de conceitos aprendidos na disciplina de Sistemas Web.  
-- A construção de um MVP funcional para um problema complexo.
-- A implementação de algoritmos heurísticos e de otimização para solucionar o TSP.  
+- A construção de um MVP funcional para um problema não trivial.
 - O uso de tecnologias web, como Flask, para criar uma interface acessível e dinâmica.  
 
 ---
@@ -38,4 +37,3 @@ Este trabalho avaliativo visa explorar:
     - [`flask`](https://flask.palletsprojects.com/en/stable/): para criação da interface web.  
     - [`matplotlib`](https://matplotlib.org/): para visualização gráfica do grafo e das rotas (planejado).  
     - [`networkx`](https://networkx.org/): para modelar e manipular o grafo de pontos (planejado).  
-
