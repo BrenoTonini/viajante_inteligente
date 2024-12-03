@@ -1,63 +1,54 @@
 import random
 
-def calcular_distancia(matriz, rota):
-    """
-    calcula a distância total de uma rota com base na matriz de distâncias.
-    """
+def calcular_distancia_total(rota, matriz_distancias):
     distancia_total = 0
-    n = len(rota)
-    for i in range(n - 1):
-        origem = rota[i]
-        destino = rota[i + 1]
-        distancia_total += matriz[origem][destino]
-    # conecta o último nó de volta ao primeiro (nó 0)
-    distancia_total += matriz[rota[-1]][rota[0]]
+    for i in range(len(rota)):
+        distancia_total += matriz_distancias[rota[i - 1]][rota[i]]
     return distancia_total
 
-def two_opt(matriz, rota):
-    """
-    aplica o algoritmo 2-opt para melhorar a rota.
-    """
-    n = len(rota)
-    melhor_rota = rota[:]
-    melhor_distancia = calcular_distancia(matriz, melhor_rota)
+def realizar_troca_2_opt(rota, i, k):
+    nova_rota = rota[:i] + rota[i:k + 1][::-1] + rota[k + 1:]
+    return nova_rota
 
-    # tenta todas as combinações de swaps 2-opt
-    for i in range(1, n - 1):  # começa a partir de 1, porque o nó 0 deve ficar fixa
-        for j in range(i + 1, n - 1):  # não pode alterar o último nó, que é o 0
-            nova_rota = melhor_rota[:]
-            nova_rota[i + 1:j + 1] = reversed(melhor_rota[i + 1:j + 1])
-            nova_distancia = calcular_distancia(matriz, nova_rota)
-            
-            if nova_distancia < melhor_distancia:
-                melhor_rota = nova_rota[:]
-                melhor_distancia = nova_distancia
-
-    return melhor_rota, melhor_distancia
-
-def gerar_rota_inicial(n):
-    """
-    gera uma rota inicial aleatória com o nó 0 fixado no início e no final.
-    """
-    rota_inicial = list(range(1, n))  # exclui o 0
-    random.shuffle(rota_inicial)
-    # coloca o nó 0 no início e no final da rota
-    rota_inicial = [0] + rota_inicial + [0]
-    return rota_inicial
-
-def otimizar_rota(matriz, n_tentativas):
-    """
-    tenta otimizar a rota por várias tentativas, retornando a melhor rota.
-    """
-    melhor_rota = None
-    melhor_distancia = float('inf')
+def algoritmo_caixeiro_2_opt(matriz_distancias):
+    numero_nos = len(matriz_distancias)
     
-    for _ in range(n_tentativas):
-        rota_inicial = gerar_rota_inicial(len(matriz))
-        rota_otimizada, distancia_otimizada = two_opt(matriz, rota_inicial)
-        
-        if distancia_otimizada < melhor_distancia:
-            melhor_rota = rota_otimizada
-            melhor_distancia = distancia_otimizada
+    # gera uma rota inicial com o nó 0 fixado no início e no final
+    rota_atual = list(range(1, numero_nos))
+    random.shuffle(rota_atual)
+    rota_atual = [0] + rota_atual + [0]
 
-    return melhor_rota, melhor_distancia
+    melhor_distancia = calcular_distancia_total(rota_atual, matriz_distancias)
+    melhorou = True
+
+    while melhorou:
+        melhorou = False
+        # tenta melhorar a rota com o algoritmo 2-opt
+        for i in range(1, len(rota_atual) - 2):
+            for k in range(i + 1, len(rota_atual) - 1):
+                nova_rota = realizar_troca_2_opt(rota_atual, i, k)
+                nova_distancia = calcular_distancia_total(nova_rota, matriz_distancias)
+
+                # se for melhor, atualiza a rota e a distância
+                if nova_distancia < melhor_distancia:
+                    rota_atual = nova_rota
+                    melhor_distancia = nova_distancia
+                    melhorou = True
+                    break
+            if melhorou:
+                break
+
+    return rota_atual, melhor_distancia
+
+
+# EXEMPLO DE USO:
+# matriz_distancias = [
+#     [0, 10, 15, 20],
+#     [10, 0, 35, 25],
+#     [15, 35, 0, 30],
+#     [20, 25, 30, 0]
+# ]
+
+# melhor_rota, melhor_distancia = algoritmo_caixeiro_2_opt(matriz_distancias)
+# print("Melhor rota encontrada:", melhor_rota)
+# print("Distância total:", melhor_distancia)
