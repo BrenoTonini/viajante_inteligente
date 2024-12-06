@@ -1,54 +1,81 @@
-import random
+import numpy as np
 
-def calcular_distancia_total(rota, matriz_distancias):
-    distancia_total = 0
-    for i in range(len(rota)):
-        distancia_total += matriz_distancias[rota[i - 1]][rota[i]]
-    return distancia_total
+class Ponto:
+    def __init__(self, x=0.0, y=0.0):
+        self.x = x
+        self.y = y
 
-def realizar_troca_2_opt(rota, i, k):
-    nova_rota = rota[:i] + rota[i:k + 1][::-1] + rota[k + 1:]
-    return nova_rota
+    # Distância entre dois pontos
+    def dist(self, outro):
+        diff_x = self.x - outro.x
+        diff_y = self.y - outro.y
+        return np.sqrt(diff_x ** 2 + diff_y ** 2)
 
-def algoritmo_caixeiro_2_opt(matriz_distancias):
-    numero_nos = len(matriz_distancias)
-    
-    # gera uma rota inicial com o nó 0 fixado no início e no final
-    rota_atual = list(range(1, numero_nos))
-    random.shuffle(rota_atual)
-    rota_atual = [0] + rota_atual + [0]
+    def __repr__(self):
+        return f"({self.x:.1f}, {self.y:.1f})"
 
-    melhor_distancia = calcular_distancia_total(rota_atual, matriz_distancias)
-    melhorou = True
 
-    while melhorou:
-        melhorou = False
-        # tenta melhorar a rota com o algoritmo 2-opt
-        for i in range(1, len(rota_atual) - 2):
-            for k in range(i + 1, len(rota_atual) - 1):
-                nova_rota = realizar_troca_2_opt(rota_atual, i, k)
-                nova_distancia = calcular_distancia_total(nova_rota, matriz_distancias)
+# Função para calcular o comprimento de uma rota
+def comprimento_rota(caminho):
+    n = len(caminho)
+    comprimento = caminho[-1].dist(caminho[0])  # Distância entre o último e o primeiro ponto
+    for i in range(n - 1):
+        comprimento += caminho[i].dist(caminho[i + 1])
+    return comprimento
 
-                # se for melhor, atualiza a rota e a distância
-                if nova_distancia < melhor_distancia:
-                    rota_atual = nova_rota
-                    melhor_distancia = nova_distancia
-                    melhorou = True
+
+# Função para realizar a troca de bordas no algoritmo 2-opt
+def trocar_bordas(caminho, i, j):
+    caminho[i+1:j+1] = reversed(caminho[i+1:j+1])
+    return caminho
+
+
+# Função para criar uma rota aleatória de n pontos
+def criar_rota_aleatoria(n):
+    pontos = []
+    for _ in range(n):
+        x = np.random.uniform(0, 1000)
+        y = np.random.uniform(0, 1000)
+        pontos.append(Ponto(x, y))
+    return pontos
+
+
+# Função para otimizar a rota com o algoritmo 2-opt
+def otimizar_rota(caminho):
+    n = len(caminho)
+    melhoria = True
+
+    while melhoria:
+        melhoria = False
+        for i in range(n - 1):
+            for j in range(i + 2, n):
+                # Calculando o delta de comprimento ao realizar a troca de bordas
+                delta_comprimento = -caminho[i].dist(caminho[i + 1]) - caminho[j].dist(caminho[(j + 1) % n]) + \
+                                     caminho[i].dist(caminho[j]) + caminho[i + 1].dist(caminho[(j + 1) % n])
+
+                # Se o comprimento da rota foi reduzido, realiza a troca de bordas
+                if delta_comprimento < 0:
+                    caminho = trocar_bordas(caminho, i, j)
+                    melhoria = True
                     break
-            if melhorou:
+            if melhoria:
                 break
 
-    return rota_atual, melhor_distancia
+    return caminho
 
 
-# EXEMPLO DE USO:
-# matriz_distancias = [
-#     [0, 10, 15, 20],
-#     [10, 0, 35, 25],
-#     [15, 35, 0, 30],
-#     [20, 25, 30, 0]
-# ]
+# Teste do código
+if __name__ == "__main__":
+    # Criando uma rota aleatória com 10 pontos
+    caminho = criar_rota_aleatoria(10)
+    print("Rota original:")
+    print(caminho)
+    comprimento_inicial = comprimento_rota(caminho)
+    print(f"Comprimento da rota original: {comprimento_inicial:.1f}")
 
-# melhor_rota, melhor_distancia = algoritmo_caixeiro_2_opt(matriz_distancias)
-# print("Melhor rota encontrada:", melhor_rota)
-# print("Distância total:", melhor_distancia)
+    # Otimizando a rota
+    caminho_otimizado = otimizar_rota(caminho)
+    comprimento_otimizado = comprimento_rota(caminho_otimizado)
+    print("\nRota otimizada:")
+    print(caminho_otimizado)
+    print(f"Comprimento da rota otimizada: {comprimento_otimizado:.1f}")
