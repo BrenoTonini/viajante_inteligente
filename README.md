@@ -35,5 +35,5 @@ Este trabalho avaliativo visa explorar:
 - **Linguagem**: Python
 - **Bibliotecas**:  
     - [`flask`](https://flask.palletsprojects.com/en/stable/): para criação da interface web.  
-    - [`matplotlib`](https://matplotlib.org/): para visualização gráfica do grafo e das rotas (planejado).  
-    - [`networkx`](https://networkx.org/): para modelar e manipular o grafo de pontos (planejado).  
+    - [`matplotlib`](https://matplotlib.org/): para visualização gráfica do grafo e das rotas.
+    - [`networkx`](https://networkx.org/): para modelar e manipular o grafo de pontos. 
