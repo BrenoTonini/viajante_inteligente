@@ -5,134 +5,174 @@ import io
 import base64
 import random
 import json
+import numpy as np
 
 app = Flask(__name__)
 app.secret_key = 'sua_chave_secreta_aqui'
 
-# Função para criar o grafo
-def create_graph(numero_de_pontos):
+# Classe Ponto
+class Ponto:
+    def __init__(self, x=0.0, y=0.0):
+        self.x = x
+        self.y = y
+
+    def dist(self, outro):
+        diff_x = self.x - outro.x
+        diff_y = self.y - outro.y
+        return np.sqrt(diff_x ** 2 + diff_y ** 2)
+
+    def __repr__(self):
+        return f"({self.x:.1f}, {self.y:.1f})"
+
+# Funções auxiliares para otimização e criação de gráficos
+def comprimento_rota(caminho):
+    n = len(caminho)
+    comprimento = caminho[-1].dist(caminho[0])
+    for i in range(n - 1):
+        comprimento += caminho[i].dist(caminho[i + 1])
+    return comprimento
+
+def trocar_bordas(caminho, i, j):
+    caminho[i+1:j+1] = reversed(caminho[i+1:j+1])
+    return caminho
+
+def criar_rota_aleatoria(n):
+    pontos = []
+    for _ in range(n):
+        x = np.random.uniform(0, 1000)
+        y = np.random.uniform(0, 1000)
+        pontos.append(Ponto(x, y))
+    return pontos
+
+def otimizar_rota(caminho):
+    n = len(caminho)
+    melhoria = True
+    while melhoria:
+        melhoria = False
+        for i in range(n - 1):
+            for j in range(i + 2, n):
+                delta_comprimento = -caminho[i].dist(caminho[i + 1]) - caminho[j].dist(caminho[(j + 1) % n]) + \
+                                     caminho[i].dist(caminho[j]) + caminho[i + 1].dist(caminho[(j + 1) % n])
+                if delta_comprimento < 0:
+                    caminho = trocar_bordas(caminho, i, j)
+                    melhoria = True
+                    break
+            if melhoria:
+                break
+    return caminho
+
+def create_graph(caminho):
     G = nx.DiGraph()
+    pos = {}
 
-   
-    G.add_nodes_from(range(1, numero_de_pontos + 1))
+    for idx, ponto in enumerate(caminho):
+        G.add_node(idx, pos=(ponto.x, ponto.y))
+        pos[idx] = (ponto.x, ponto.y)
 
-    # Adicionando arestas com pesos aleatórios
-    for i in range(1, numero_de_pontos):
-        for j in range(i + 1, numero_de_pontos + 1):
-            peso = random.randint(1, 10)
-            G.add_edge(i, j, weight=peso)
+    for i in range(len(caminho)):
+        G.add_edge(i, (i + 1) % len(caminho), weight=caminho[i].dist(caminho[(i + 1) % len(caminho)]))
 
-    # Gerando a visualização do grafo
-    pos = nx.spring_layout(G)
-    plt.figure(figsize=(10, 4))
-    nx.draw(G, pos, with_labels=True, node_size=600, node_color="red", font_size=12, font_weight="bold", arrowsize=10, arrows = False,)
+    plt.figure(figsize=(10, 6))
+    nx.draw(G, pos, with_labels=True, node_size=600, node_color="skyblue", font_size=12, font_weight="bold", arrowsize=15)
     edge_labels = nx.get_edge_attributes(G, 'weight')
-    
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels={k: f"{v:.1f}" for k, v in edge_labels.items()})
 
-    # Salvando a imagem do grafo
     img = io.BytesIO()
     plt.savefig(img, format='png')
     img.seek(0)
-
-    # Convertendo para base64
     img_base64 = base64.b64encode(img.getvalue()).decode('utf-8')
-    return img_base64, G
-
-# Função para serializar o grafo
-def serialize_graph(G):
-    edges = []
-    for u, v, data in G.edges(data=True):
-        edges.append((u, v, data['weight']))
-    return json.dumps({'nodes': list(G.nodes), 'edges': edges})
-
-# Função para desserializar o grafo
-def deserialize_graph(serialized_graph):
-    data = json.loads(serialized_graph)
-    G = nx.DiGraph()
-    G.add_nodes_from(data['nodes'])
-    for u, v, weight in data['edges']:
-        G.add_edge(u, v, weight=weight)
-    return G
+    return img_base64
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     graph_img = None
-    numero_de_pontos = 10 
+    numero_de_pontos = 10
+    caminho = None
+
     if request.method == 'POST':
-        pontos = int(request.form['pontos'])  
-        graph_img, G = create_graph(pontos)  
-        serialized_graph = serialize_graph(G)  
-        session['G'] = serialized_graph
+        if 'gerar' in request.form:
+            pontos = int(request.form['pontos'])
+            caminho = criar_rota_aleatoria(pontos)
+            session['caminho'] = [(p.x, p.y) for p in caminho]
+            graph_img = create_graph(caminho)
+        elif 'organizar' in request.form:
+            caminho = [Ponto(x, y) for x, y in session.get('caminho', [])]
+            caminho_otimizado = otimizar_rota(caminho)
+            session['caminho_otimizado'] = [(p.x, p.y) for p in caminho_otimizado]
+            graph_img = create_graph(caminho_otimizado)
 
     return render_template_string('''<!DOCTYPE html>
     <html>
         <head>
-            <title>TRABALHO GRAPH</title>
+            <title>Otimização de Rotas</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
             <style>
                 body {
-                    font-family: Arial, sans-serif;
-                    background-color: #f4f4f9;
+                    font-family: 'Arial', sans-serif;
+                    background: linear-gradient(to right, #8360c3, #2ebf91);
+                    margin: 0;
+                    padding: 0;
                     display: flex;
                     justify-content: center;
                     align-items: center;
                     height: 100vh;
-                    flex-direction: column;
+                    color: #fff;
                 }
-
                 .container {
+                    text-align: center;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 30px;
+                    border-radius: 15px;
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
                     width: 80%;
-                    max-width: 1000px;
-                    padding: 20px;
-                    background-color: rgba(255, 255, 255, 0.8);
-                    border-radius: 8px;
-                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                    max-width: 800px;
                 }
-
                 h3 {
-                    background-color : rgb(102, 216, 74)
-                    display: center;
-                    padding-left: 250px;
-                    font-size: 24px;
-                    color: #333;
+                    font-size: 2rem;
+                    margin-bottom: 20px;
+                    font-weight: bold;
+                }
+                .graph img {
+                    width: 100%;
+                    border-radius: 10px;
                     margin-bottom: 20px;
                 }
-
-                .graph img {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 8px;
-                    margin-top: 20px;
-                }
-
                 .form-container {
-                    margin-top: 20px;
+                    display: flex;
+                    justify-content: space-around;
+                    flex-wrap: wrap;
+                    gap: 10px;
                 }
-
                 select, button {
-                    padding: 10px;
+                    padding: 12px 20px;
                     font-size: 16px;
-                    border: 2px solid #0099cc;
+                    border: none;
                     border-radius: 8px;
-                    background-color: #f0faff;
-                    margin-top: 10px;
-                    width: 100%;
-                }
-
-                button {
-                    background-color: #04AA6D;
-                    color: white;
                     cursor: pointer;
                 }
-
+                select {
+                    background: #fff;
+                    color: #333;
+                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+                }
+                button {
+                    background: #04AA6D;
+                    color: white;
+                    transition: all 0.3s ease-in-out;
+                }
                 button:hover {
-                    background-color: #028a56;
+                    background: #028a56;
+                }
+                footer {
+                    margin-top: 20px;
+                    font-size: 14px;
+                    color: #ddd;
                 }
             </style>
         </head>
         <body>
             <div class="container">
-                <h3>Seu melhor trajeto é nossa preocupação</h3>
+                <h3><i class="fas fa-route"></i> Seu Melhor Trajeto</h3>
                 {% if graph_img %}
                     <div class="graph">
                         <img src="data:image/png;base64,{{ graph_img }}" alt="Grafo">
@@ -142,17 +182,23 @@ def index():
                     <form method="POST">
                         <label for="pontos">Quantos pontos deseja ter em seu trajeto?</label>
                         <select name="pontos" id="pontos">
-                            {% for i in range(2, numero_de_pontos + 1) %}
+                            {% for i in range(2, 21) %}
                                 <option value="{{ i }}">Ponto {{ i }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit">Gerar</button>
+                        <button type="submit" name="gerar"><i class="fas fa-random"></i> Gerar Rota</button>
                     </form>
+                    {% if session.get('caminho') %}
+                        <form method="POST">
+                            <button type="submit" name="organizar"><i class="fas fa-sort"></i> Organizar Rota</button>
+                        </form>
+                    {% endif %}
                 </div>
+                <footer>&copy; 2024 Seu Melhor Trajeto</footer>
             </div>
         </body>
     </html>
-    ''', graph_img=graph_img, numero_de_pontos=numero_de_pontos)
+    ''', graph_img=graph_img)
 
 if __name__ == '__main__':
     app.run(debug=True)

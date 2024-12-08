@@ -1,4 +1,4 @@
-﻿blinker==1.9.0
+blinker==1.9.0
 click==8.1.7
 colorama==0.4.6
 contourpy==1.3.1
